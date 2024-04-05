@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Performance by Gender</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        .bar {
+            fill-opacity: 0.7;
+        }
+        .axis-label {
+            font-size: 16px; /* Increase font size for axis labels */
+        }
+        .legend {
+            font-size: 14px; /* Increase font size for legend text */
+        }
+        .legend rect {
+            stroke-width: 2;
+            stroke: #fff;
+        }
+        .axis text { /* Increase font size for axis ticks */
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <svg width="960" height="500"></svg>
+    <script>
+        var svg = d3.select("svg"),
+            margin = {top: 20, right: 80, bottom: 30, left: 40},
+            width = +svg.attr("width") - margin.left - margin.right,
+            height = +svg.attr("height") - margin.top - margin.bottom;
+
+        var x0 = d3.scaleBand().rangeRound([0, width]).paddingInner(0.1);
+        var x1 = d3.scaleBand().padding(0.05);
+        var y = d3.scaleLinear().rangeRound([height, 0]);
+        var color = d3.scaleOrdinal().range(["#1f77b4", "#ff7f0e"]);
+
+        var g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        d3.csv("study_performance.csv").then(function(data) {
+            var categories = ["math_score", "reading_score", "writing_score"];
+            var genders = ["female", "male"];
+
+            // Calculate average scores by gender for each category
+            var averages = {};
+            categories.forEach(function(category) {
+                averages[category] = {};
+                genders.forEach(function(gender) {
+                    var scores = data.filter(d => d.gender === gender).map(d => +d[category]);
+                    averages[category][gender] = d3.mean(scores);
+                });
+            });
+
+            var scoreData = categories.map(function(category) {
+                return genders.map(function(gender) {
+                    return {category: category, gender: gender, average: averages[category][gender]};
+                });
+            }).flat();
+
+            x0.domain(categories);
+            x1.domain(genders).rangeRound([0, x0.bandwidth()]);
+            y.domain([0, d3.max(scoreData, d => d.average)]).nice();
+
+            g.append("g")
+             .selectAll("g")
+             .data(scoreData)
+             .enter().append("g")
+                .attr("transform", d => `translate(${x0(d.category)},0)`)
+             .selectAll("rect")
+             .data(d => [d])
+             .enter().append("rect")
+                .attr("x", d => x1(d.gender))
+                .attr("y", d => y(d.average))
+                .attr("width", x1.bandwidth())
+                .attr("height", d => height - y(d.average))
+                .attr("class", "bar")
+                .style("fill", d => color(d.gender));
+
+            g.append("g")
+                .attr("class", "x-axis")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(x0))
+                .append("text")
+                .attr("class", "axis-label")
+                .attr("y", 35)
+                .attr("x", width / 2)
+                .attr("text-anchor", "end")
+                .text("Score Type");
+
+            g.append("g")
+                .attr("class", "y-axis")
+                .call(d3.axisLeft(y))
+                .append("text")
+                .attr("class", "axis-label")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -40)
+                .attr("x", -height / 2)
+                .attr("text-anchor", "end")
+                .text("Average Score");
+
+            // Legend
+            var legend = g.append("g")
+                .attr("class", "legend")
+                .attr("transform", `translate(${width - 20}, 0)`)
+                .selectAll("g")
+                .data(genders)
+                .enter().append("g")
+                .attr("transform", (d, i) => `translate(0, ${i * 20})`);
+
+            legend.append("rect")
+                .attr("width", 18)
+                .attr("height", 18)
+                .style("fill", color);
+
+            legend.append("text")
+                .attr("x", 24)
+                .attr("y", 9)
+                .attr("dy", "0.35em")
+                .text(d => d);
+        });
+    </script>
+</body>
+</html>
